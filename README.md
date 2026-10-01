@@ -1,6 +1,19 @@
 # Store Manager
 
+> **목표 · 스마트스토어 운영** — 스마트스토어의 주문·재고를 관리하고 AI 상세페이지 생성과 경쟁사 벤치마킹을 한다.  
+> **하지 않는 일** — 농장 영농·자금 관리(retirefarm_manager).
+
 스마트스토어 통합 관리 솔루션 - 주문 관리, 재고 관리, AI 상세페이지 생성, 경쟁사 벤치마킹 분석을 한 곳에서.
+
+## 생업·가족 앱의 목표와 경계
+
+| 앱 | 어디서 | 목표 | 하지 않는 일 |
+|---|---|---|---|
+| **store_manager** (이것) | NAS 웹 | **스마트스토어 운영** — 스마트스토어의 주문·재고를 관리하고 AI 상세페이지 생성과 경쟁사 벤치마킹을 한다 | 농장 영농·자금 관리(retirefarm_manager) |
+| **[retirefarm_manager](https://github.com/HyunjoonKwak/retirefarm_manager)** | NAS 웹 | **귀농·스마트팜 경영** — 평택 스마트팜(대추방울토마토)의 귀농 준비·자금·영농 기록과 주간 시장 브리핑(가락시장 도매가·경쟁점 판매가)을 관리한다 | 스마트스토어 주문·재고 운영(store_manager) |
+| **[goe_recruit](https://github.com/HyunjoonKwak/goe_recruit)** | NAS 웹 | **가족 구직** — 아내의 학교 구인구직 검색 — 경기도교육청 채용공고를 모아 보여 주고 새 공고를 텔레그램으로 알린다 | 다른 지역·직군 채용, 지원서 작성 |
+
+도매시장 시세 플랫폼 nongsise_platform은 쓰지 않아 2026-10-01에 보관했다(도매가는 retirefarm_manager가 직접 수집).
 
 ## 주요 기능
 
