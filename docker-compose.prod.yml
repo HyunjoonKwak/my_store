@@ -1,7 +1,7 @@
 services:
-  store-manager:
-    image: ghcr.io/${GHCR_USERNAME:-hyunjoonkwak}/openstore_manager:${IMAGE_TAG:-latest}
-    container_name: store-manager
+  my-store:
+    image: ghcr.io/${GHCR_USERNAME:-hyunjoonkwak}/my-store:${IMAGE_TAG:-latest}
+    container_name: my-store
     restart: unless-stopped
     ports:
       - "3300:3000"
@@ -32,12 +32,12 @@ services:
   # Drives automatic sync: pings the app every 5 minutes over the compose
   # network (never exposed publicly). The route itself decides which
   # schedules are actually due, so a frequent tick is cheap.
-  store-manager-cron:
+  my-store-cron:
     image: curlimages/curl:8.11.1
-    container_name: store-manager-cron
+    container_name: my-store-cron
     restart: unless-stopped
     depends_on:
-      store-manager:
+      my-store:
         condition: service_healthy
     environment:
       - CRON_SECRET=${CRON_SECRET}
@@ -49,5 +49,5 @@ services:
           sleep 300
           curl -sS -m 240 -o /dev/null \
             -H "Authorization: Bearer $$CRON_SECRET" \
-            http://store-manager:3000/api/cron/sync || true
+            http://my-store:3000/api/cron/sync || true
         done

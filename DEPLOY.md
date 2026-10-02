@@ -8,9 +8,9 @@ GitHub Actions 워크플로는 없다(`.github/`가 존재하지 않음) — `ma
 
 | 항목 | 값 |
 |------|-----|
-| 이미지 | `ghcr.io/hyunjoonkwak/openstore_manager:latest` (로컬 `manage.sh ghcr:push`가 빌드) |
-| NAS 경로 | `/volume1/code_work/store_manager` (root 소유, git 아님 — compose·deploy.sh·.env만 둔다) |
-| 컨테이너 | `store-manager` (포트 `3300→3000`) + `store-manager-cron` (5분 간격 `/api/cron/sync` 호출 사이드카) |
+| 이미지 | `ghcr.io/hyunjoonkwak/my_store:latest` (로컬 `manage.sh ghcr:push`가 빌드) |
+| NAS 경로 | `/volume1/code_work/my_store` (root 소유, git 아님 — compose·deploy.sh·.env만 둔다) |
+| 컨테이너 | `my-store` (포트 `3300→3000`) + `my-store-cron` (5분 간격 `/api/cron/sync` 호출 사이드카) |
 | compose | `docker-compose.prod.yml` |
 | 외부 접근 | `https://store.specialrisk.me` — Nginx Proxy Manager(host #19) → `192.168.1.113:3300` |
 | DB | Supabase 호스티드 프로젝트. CLI 링크 안 됨 → **마이그레이션은 대시보드 SQL Editor에서 수동 적용** |
@@ -34,15 +34,15 @@ bash ~/.claude/skills/ship/ship.sh v1.2.0     # 특정 태그
 ./manage.sh ghcr:login            # 최초 1회 (GitHub PAT, write:packages)
 ./manage.sh ghcr:push             # 빌드 + 푸시
 scp docker-compose.prod.yml deploy.sh nas:/tmp/ && \
-  ssh nas 'sudo mv /tmp/docker-compose.prod.yml /tmp/deploy.sh /volume1/code_work/store_manager/'
-ssh nas 'cd /volume1/code_work/store_manager && sudo ./deploy.sh update'
+  ssh nas 'sudo mv /tmp/docker-compose.prod.yml /tmp/deploy.sh /volume1/code_work/my_store/'
+ssh nas 'cd /volume1/code_work/my_store && sudo ./deploy.sh update'
 ```
 
 `deploy.sh` 명령: `login` `pull` `deploy` `update` `start` `stop` `restart` `status` `logs [svc]` `clean`
 
 > NAS 비대화형 SSH에는 docker가 PATH에 없다. 직접 실행할 때는 `sudo /usr/local/bin/docker ...` 전체 경로를 쓴다.
 
-## 환경변수 (`/volume1/code_work/store_manager/.env`)
+## 환경변수 (`/volume1/code_work/my_store/.env`)
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
@@ -67,7 +67,7 @@ COOLSMS_*/KAKAO_* 미설정 경고는 무해하다(선택 기능). `.env`를 바
 
 ## 자동 동기화 (cron)
 
-- `store-manager-cron` 사이드카가 5분마다 `http://store-manager:3000/api/cron/sync`를
+- `my-store-cron` 사이드카가 5분마다 `http://my-store:3000/api/cron/sync`를
   `Authorization: Bearer $CRON_SECRET`으로 호출한다. 라우트가 계정별 스케줄의 due 여부를 판단한다.
 - 설정 > 자동화 탭에서 계정별 주기·대상을 관리하고 최근 실행 기록(자동/수동 구분)을 본다.
 - 실행 기록(`sync_runs`)은 90일 지난 행을 매 tick마다 정리한다(`lib/sync/retention.ts`).
@@ -88,10 +88,10 @@ DSM 내장 역방향 프록시가 아니라 NAS의 `nginx-proxy-manager` 컨테�
 
 ```bash
 # NAS에서
-sudo /usr/local/bin/docker ps --filter name=store-manager
-sudo /usr/local/bin/docker logs -f store-manager --tail 100
-sudo /usr/local/bin/docker logs store-manager-cron --tail 20
-sudo /usr/local/bin/docker exec store-manager env | grep -E 'SUPABASE|CRON|SECRETS'
+sudo /usr/local/bin/docker ps --filter name=my-store
+sudo /usr/local/bin/docker logs -f my-store --tail 100
+sudo /usr/local/bin/docker logs my-store-cron --tail 20
+sudo /usr/local/bin/docker exec my-store env | grep -E 'SUPABASE|CRON|SECRETS'
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3300/        # 307(로그인 리다이렉트)이면 정상
 
 # NPM 쪽
@@ -102,6 +102,6 @@ sudo /usr/local/bin/docker exec nginx-proxy-manager tail -20 /data/logs/proxy-ho
 |------|-------------|
 | 컨테이너가 바로 종료 | `SECRETS_ENCRYPTION_KEY` 누락 — compose `:?` 가드. `.env` 확인 |
 | 로그인 직후 502 한 번 | NPM 버퍼 설정 누락 — 위 `server_proxy.conf` 확인 |
-| 자동 동기화가 돌지 않음 | `store-manager-cron` 상태, `CRON_SECRET` 일치 여부, 설정 > 자동화 탭 활성화 여부 |
+| 자동 동기화가 돌지 않음 | `my-store-cron` 상태, `CRON_SECRET` 일치 여부, 설정 > 자동화 탭 활성화 여부 |
 | AI 기능이 `no_key` | 설정 > AI 탭에 키 입력 또는 `.env`의 `ANTHROPIC_API_KEY` |
 | 설정 저장 시 "암호화 키" 오류 | `SECRETS_ENCRYPTION_KEY` 확인 |

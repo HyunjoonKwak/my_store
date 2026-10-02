@@ -1,4 +1,6 @@
-# Store Manager
+# My Store (my_store)
+
+> 2026-10-02 리브랜딩: 옛 이름 Store Manager · store_manager · 저장소 openstore_manager. NAS 폴더·이미지·컨테이너를 my_store / my-store로 바꿨다. 크롬 확장·아이콘 파일·브라우저 저장 키 이름은 그대로다.
 
 > **목표 · 스마트스토어 운영** — 스마트스토어의 주문·재고를 관리하고 AI 상세페이지 생성과 경쟁사 벤치마킹을 한다.  
 > **하지 않는 일** — 농장 영농·자금 관리(retirefarm_manager).
@@ -9,8 +11,8 @@
 
 | 앱 | 어디서 | 목표 | 하지 않는 일 |
 |---|---|---|---|
-| **store_manager** (이것) | NAS 웹 | **스마트스토어 운영** — 스마트스토어의 주문·재고를 관리하고 AI 상세페이지 생성과 경쟁사 벤치마킹을 한다 | 농장 영농·자금 관리(retirefarm_manager) |
-| **[retirefarm_manager](https://github.com/HyunjoonKwak/retirefarm_manager)** | NAS 웹 | **귀농·스마트팜 경영** — 평택 스마트팜(대추방울토마토)의 귀농 준비·자금·영농 기록과 주간 시장 브리핑(가락시장 도매가·경쟁점 판매가)을 관리한다 | 스마트스토어 주문·재고 운영(store_manager) |
+| **my_store** (이것) | NAS 웹 | **스마트스토어 운영** — 스마트스토어의 주문·재고를 관리하고 AI 상세페이지 생성과 경쟁사 벤치마킹을 한다 | 농장 영농·자금 관리(retirefarm_manager) |
+| **[retirefarm_manager](https://github.com/HyunjoonKwak/retirefarm_manager)** | NAS 웹 | **귀농·스마트팜 경영** — 평택 스마트팜(대추방울토마토)의 귀농 준비·자금·영농 기록과 주간 시장 브리핑(가락시장 도매가·경쟁점 판매가)을 관리한다 | 스마트스토어 주문·재고 운영(my_store) |
 | **[goe_recruit](https://github.com/HyunjoonKwak/goe_recruit)** | NAS 웹 | **가족 구직** — 아내의 학교 구인구직 검색 — 경기도교육청 채용공고를 모아 보여 주고 새 공고를 텔레그램으로 알린다 | 다른 지역·직군 채용, 지원서 작성 |
 
 도매시장 시세 플랫폼 nongsise_platform은 쓰지 않아 2026-10-01에 보관했다(도매가는 retirefarm_manager가 직접 수집).
@@ -48,8 +50,8 @@
 
 ```bash
 # 1. 저장소 클론
-git clone https://github.com/your-username/store-manager.git
-cd store-manager
+git clone https://github.com/your-username/my-store.git
+cd my-store
 
 # 2. 의존성 설치
 npm install

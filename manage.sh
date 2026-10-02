@@ -2,7 +2,7 @@
 
 set -e
 
-APP_NAME="store-manager"
+APP_NAME="my-store"
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 GHCR_USERNAME="${GHCR_USERNAME:-hyunjoonkwak}"
@@ -192,7 +192,7 @@ dev_update() {
 
 shell() {
     log_info "컨테이너 셸에 접속합니다..."
-    docker-compose exec store-manager /bin/sh
+    docker-compose exec my-store /bin/sh
 }
 
 cleanup() {
@@ -307,13 +307,13 @@ ghcr_build() {
         --platform "$platform" \
         --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
         --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-        -t "ghcr.io/${username}/openstore_manager:${tag}" \
+        -t "ghcr.io/${username}/my-store:${tag}" \
         --push \
         "$APP_DIR"
 
     if [ $? -eq 0 ]; then
         log_success "빌드 및 푸시 완료"
-        log_info "이미지: ghcr.io/${username}/openstore_manager:${tag}"
+        log_info "이미지: ghcr.io/${username}/my-store:${tag}"
     else
         log_error "빌드 실패"
         exit 1

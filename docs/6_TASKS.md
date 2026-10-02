@@ -21,7 +21,7 @@
 ### Task 0.1: Framework Setup & Scaffolding
 - **Context**: Initialize Next.js 14+ project with TypeScript, Tailwind CSS, ESLint
 - **Instruction**:
-  1. Create new Next.js app: `npx create-next-app@latest store-manager --typescript --tailwind --app`
+  1. Create new Next.js app: `npx create-next-app@latest my-store --typescript --tailwind --app`
   2. Configure strict mode in `tsconfig.json`
   3. Setup Shadcn/UI: `npx shadcn-ui@latest init`
   4. Install dependencies: `@supabase/ssr`, `@supabase/supabase-js`, `zustand`, `lucide-react`, `clsx`, `tailwind-merge`

@@ -41,7 +41,7 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
 - ~~**스케줄러/cron 자동화**~~ → **2026-08-20 복구 완료**. in-process node-cron은 standalone 빌드에서 아예 기동하지 않았고 legacy 테이블을 참조했다. 이제:
   `lib/sync/engine.ts`(세션 무관 코어) + `lib/sync/due.ts`(순수 due 규칙, 유닛 8개) +
   `/api/cron/sync`(service role, CRON_SECRET 인증, 계정별 due 평가) 구조이고,
-  tick은 compose의 `store-manager-cron` 사이드카가 5분 간격으로 내부망에서 호출한다
+  tick은 compose의 `my-store-cron` 사이드카가 5분 간격으로 내부망에서 호출한다
   (DSM 크론은 업데이트 시 초기화되므로 사용하지 않음). 설정 > 자동화 탭에서 계정별
   주기·대상을 관리하고 최근 실행 기록을 본다. 운영에서 자동 실행 검증 완료.
 - ~~**AI 기능(OpenAI 키 의존)**~~ → **2026-08-20 Claude 전환 완료**. 프로바이더를 Anthropic

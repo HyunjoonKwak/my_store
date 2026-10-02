@@ -3,13 +3,13 @@
 > **Version:** 1.0
 > **Date:** 2026-08-14
 > **작성 경위:** code_work 루트 세션에서 조사·분석만 수행. 코드는 손대지 않음.
-> **이어받을 곳:** store_manager 전용 세션
+> **이어받을 곳:** my_store 전용 세션
 
 ---
 
 ## 0. 이 문서의 목적
 
-`johunsang/smartku`(스마트스토어·쿠팡 통합관리 Tauri 앱)를 분석하고, store_manager의
+`johunsang/smartku`(스마트스토어·쿠팡 통합관리 Tauri 앱)를 분석하고, my_store의
 확장 방향(택배 프린터·택배사 연동)을 검토한 결과를 정리한다. 실행은 이 문서를 받는 세션에서 한다.
 
 ---
@@ -32,7 +32,7 @@
 - 110 파일 / Rust 11개(1MB) / 9⭐ / 2026-07-27 생성, **2026-08-01 이후 커밋 없음**
 - 프런트엔드는 `dist/index.html` **단일 파일 875KB** (바닐라 JS, 빌드 없음)
 
-### store_manager에 없는 기능
+### my_store에 없는 기능
 
 | 기능 | smartku 위치 |
 |---|---|
@@ -42,7 +42,7 @@
 | 네이버↔쿠팡 카테고리 매핑 | — |
 | 해외구매대행(AGENT_BUY·통관부호·인보이스) | — |
 
-반대로 store_manager에만 있는 것: **재고 관리, 공급업체 발주, 경쟁사 벤치마킹**
+반대로 my_store에만 있는 것: **재고 관리, 공급업체 발주, 경쟁사 벤치마킹**
 
 ### 참고할 설계 원칙 (README 명시)
 
@@ -146,7 +146,7 @@ AI가 요청을 받아도 **바로 실행하지 않고 실행 버튼을 제시**
 ```
 
 명세서 규칙: **AI는 미리 정의된 액션만 실행. 대화를 통한 마켓 등록은 차단하고 수동 업로드 버튼 요구.**
-→ 읽기·집계는 대화로, 실제 마켓에 나가는 행위는 손으로. store_manager의 AI 상세페이지 생성 기능에
+→ 읽기·집계는 대화로, 실제 마켓에 나가는 행위는 손으로. my_store의 AI 상세페이지 생성 기능에
 같은 경계를 적용할지 검토.
 
 ### ④ 로컬 상태 vs 실제 마켓 상태 비교 — 난이도 중간 / 운영 신뢰도
@@ -158,7 +158,7 @@ AI가 요청을 받아도 **바로 실행하지 않고 실행 버튼을 제시**
 
 ### ⑤ 원본상품(마스터) 모델 — 난이도 높음(스키마) / 쿠팡 확장 시 필수
 
-**현재 store_manager 스키마 (`4_Database_Design.md`)**
+**현재 my_store 스키마 (`4_Database_Design.md`)**
 
 ```
 STORES ||--o{ PRODUCTS      ← 상품이 스토어에 종속
@@ -196,7 +196,7 @@ STORES ||--o{ PRODUCTS      ← 상품이 스토어에 종속
 ## 5. 따라하지 말 것
 
 - `dist/index.html` **875KB 단일 파일** — 화면 9개 + 모달 20개 이상이 한 파일에.
-  store_manager의 Next.js + Radix UI 구성이 모든 면에서 우수
+  my_store의 Next.js + Radix UI 구성이 모든 면에서 우수
 - `src-tauri/src/lib.rs` **14,129줄 / Tauri 커맨드 137개 / 함수 298개** —
   `~/.claude/rules/coding-style.md` 기준(800줄 max)의 17배
 - **vendor 통째 내장** — `tui-image-editor.js` 1.9MB + `fabric.min.js` 305KB

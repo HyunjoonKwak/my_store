@@ -64,7 +64,7 @@ pull_images() {
     echo ""
 
     echo -e "${BLUE}이미지 풀 중...${NC}"
-    docker pull ghcr.io/${GHCR_USERNAME}/openstore_manager:${IMAGE_TAG}
+    docker pull ghcr.io/${GHCR_USERNAME}/my-store:${IMAGE_TAG}
 
     print_success "이미지 풀 완료!"
 }

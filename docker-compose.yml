@@ -1,7 +1,7 @@
 services:
-  store-manager:
-    image: ghcr.io/hyunjoonkwak/openstore_manager:latest
-    container_name: store-manager
+  my-store:
+    image: ghcr.io/hyunjoonkwak/my_store:latest
+    container_name: my-store
     restart: unless-stopped
     ports:
       - "3300:3000"
