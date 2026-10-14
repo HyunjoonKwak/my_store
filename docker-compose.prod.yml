@@ -35,6 +35,13 @@ services:
   my-store-cron:
     image: curlimages/curl:8.11.1
     container_name: my-store-cron
+    healthcheck:
+      # The only thing that can die here is the shell loop itself.
+      test: ["CMD-SHELL", "ps | grep -q '[w]hile true'"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     depends_on:
       my-store:
