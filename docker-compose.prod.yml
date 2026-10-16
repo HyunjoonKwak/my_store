@@ -24,7 +24,7 @@ services:
       - TZ=Asia/Seoul
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
-      interval: 30s
+      interval: 2m
       timeout: 10s
       retries: 3
       start_period: 40s
@@ -38,7 +38,7 @@ services:
     healthcheck:
       # The only thing that can die here is the shell loop itself.
       test: ["CMD-SHELL", "ps | grep -q '[w]hile true'"]
-      interval: 60s
+      interval: 2m
       timeout: 10s
       retries: 3
       start_period: 10s
