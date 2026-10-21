@@ -10,7 +10,8 @@
 --    prune_listing_snapshots() deletes rows older than the cutoff but always
 --    keeps each listing's latest snapshot (the only one the app reads).
 --
--- Idempotent. Apply manually in the Supabase SQL editor (project is not
+-- Safe to re-run (schema guarded, data copies skip already-migrated state).
+-- Apply manually in the Supabase SQL editor (project is not
 -- CLI-linked), before deploying the code that depends on it.
 
 -- ------------------------------------------------------------
@@ -55,7 +56,10 @@ CREATE TRIGGER trg_delivery_trackings_updated_at BEFORE UPDATE ON public.deliver
 
 DO $$
 BEGIN
-  IF to_regclass('public.legacy_delivery_trackings') IS NOT NULL THEN
+  -- Copy only into an empty table so a re-run cannot resurrect rows the
+  -- user deleted after the first application
+  IF to_regclass('public.legacy_delivery_trackings') IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM public.delivery_trackings) THEN
     INSERT INTO public.delivery_trackings (
       user_id, carrier_id, carrier_name, tracking_number, status,
       latest_event_status, latest_event_time, latest_event_description,
@@ -89,7 +93,10 @@ BEGIN
     FROM public.legacy_products lp
     JOIN public.market_listings ml
       ON ml.remote_ref = lp.naver_channel_product_no::text
-    WHERE bs.my_product_id = lp.id;
+    JOIN public.market_accounts ma
+      ON ma.id = ml.market_account_id AND ma.platform = 'naver'
+    WHERE bs.my_product_id = lp.id
+      AND ma.user_id = bs.user_id;
   END IF;
 END $$;
 

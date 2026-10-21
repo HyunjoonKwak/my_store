@@ -8,13 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { ThemeSelector } from '@/components/ui/ThemeToggle'
 import type { Platform } from '@/types/database.types'
@@ -230,23 +223,9 @@ export function GeneralTab({
           </div>
           <div className="space-y-2">
             <Label htmlFor="platform">플랫폼</Label>
-            <Select
-              value={profile.platform}
-              onValueChange={(value) =>
-                setProfile((prev) => ({ ...prev, platform: value as Platform }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Naver">네이버 스마트스토어</SelectItem>
-                <SelectItem value="Coupang">쿠팡</SelectItem>
-                <SelectItem value="Gmarket">G마켓</SelectItem>
-                <SelectItem value="11st">11번가</SelectItem>
-                <SelectItem value="Other">기타</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* The settings store is the primary Naver market account; other
+                markets are added under 마켓 계정 */}
+            <Input id="platform" value="네이버 스마트스토어" readOnly disabled />
           </div>
         </CardContent>
       </Card>

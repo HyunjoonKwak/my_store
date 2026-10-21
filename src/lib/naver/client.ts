@@ -65,12 +65,21 @@ export class NaverCommerceClient {
       params.append('account_id', this.config.sellerId)
     }
 
-    const response = await fetch(`${NAVER_API_BASE_URL}/external/v1/oauth2/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params,
-      signal: AbortSignal.timeout(10_000),
-    })
+    const requestToken = () =>
+      fetch(`${NAVER_API_BASE_URL}/external/v1/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+        signal: AbortSignal.timeout(10_000),
+      })
+
+    let response = await requestToken()
+    for (let attempt = 0; shouldRetryRateLimit(response.status, attempt); attempt++) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, rateLimitDelayMs(attempt, response.headers.get('retry-after')))
+      )
+      response = await requestToken()
+    }
 
     if (!response.ok) {
       const error = await response.text()

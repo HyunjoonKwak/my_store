@@ -262,18 +262,7 @@ export async function runOrderSync(
   }
 
   // Snapshot known refs before upserting so the alert counts only new orders
-  const fetchedRefs = orders.map((order) => order.marketOrderRef)
-  const { data: knownRows } = fetchedRefs.length
-    ? await supabase
-        .from('orders')
-        .select('market_order_ref')
-        .eq('market_account_id', marketAccountId)
-        .in('market_order_ref', fetchedRefs)
-    : { data: [] }
-  const newOrders = countNewOrders(
-    fetchedRefs,
-    (knownRows || []).map((row) => row.market_order_ref as string),
-  )
+  const newOrders = await countUnseenOrders(supabase, marketAccountId, orders)
 
   // Resolve listings once for item → master/supplier linking
   const { data: listingRows } = await supabase
@@ -398,6 +387,38 @@ export async function runOrderSync(
   await notifyNewOrders(account, newOrders)
 
   return { success: true, processed, failed, error: null }
+}
+
+// Orders in this pull that were not stored before it. Returns 0 when the
+// lookup fails (an error must not alert the whole 7-day window) and on the
+// account's first order sync (a backfill is not "new" orders).
+async function countUnseenOrders(
+  supabase: RedesignClient,
+  marketAccountId: string,
+  orders: NormalizedOrder[],
+): Promise<number> {
+  const fetchedRefs = orders.map((order) => order.marketOrderRef)
+  if (fetchedRefs.length === 0) return 0
+
+  const { count: storedCount, error: countError } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('market_account_id', marketAccountId)
+  if (countError || !storedCount) return 0
+
+  const knownRefs: string[] = []
+  // Chunk the IN list so a busy week cannot exceed the URL length limit
+  for (let i = 0; i < fetchedRefs.length; i += 100) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('market_order_ref')
+      .eq('market_account_id', marketAccountId)
+      .in('market_order_ref', fetchedRefs.slice(i, i + 100))
+    if (error) return 0
+    knownRefs.push(...(data || []).map((row) => row.market_order_ref as string))
+  }
+
+  return countNewOrders(fetchedRefs, knownRefs)
 }
 
 // Discord alert per settings > 알림 (market_accounts.notification_*).
