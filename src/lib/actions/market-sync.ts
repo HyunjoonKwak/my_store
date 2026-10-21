@@ -42,12 +42,11 @@ async function withAccount(
 }
 
 export async function syncProductsFromMarket(
-  marketAccountId: string,
-  mode: 'initial' | 'refresh' = 'refresh'
+  marketAccountId: string
 ): Promise<SyncActionResult> {
   return withAccount(
     marketAccountId,
-    ({ supabase, account, adapter }) => runProductSync(supabase, account, adapter, mode),
+    ({ supabase, account, adapter }) => runProductSync(supabase, account, adapter),
     ['/products']
   )
 }

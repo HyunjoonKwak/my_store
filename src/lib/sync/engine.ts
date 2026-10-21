@@ -28,55 +28,6 @@ async function recordSyncRun(supabase: RedesignClient, params: SyncRunRecordPara
 }
 
 // ------------------------------------------------------------------
-// Legacy supplier mapping (legacy_products preserved by migration 100)
-// ------------------------------------------------------------------
-
-interface LegacySupplierRef {
-  sku: string | null
-  platformProductId: string | null
-  supplierId: string
-}
-
-async function loadLegacySupplierRefs(supabase: RedesignClient): Promise<LegacySupplierRef[]> {
-  // legacy_products is outside the redesign schema types
-  const legacyClient = supabase as unknown as {
-    from: (table: string) => {
-      select: (columns: string) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>
-    }
-  }
-  const { data, error } = await legacyClient
-    .from('legacy_products')
-    .select('sku, platform_product_id, supplier_id')
-
-  if (error || !data) return []
-
-  return (data as Array<{ sku: string | null; platform_product_id: string | null; supplier_id: string | null }>)
-    .filter((row) => row.supplier_id !== null)
-    .map((row) => ({
-      sku: row.sku,
-      platformProductId: row.platform_product_id,
-      supplierId: row.supplier_id as string,
-    }))
-}
-
-function findLegacySupplier(
-  refs: LegacySupplierRef[],
-  listing: RemoteListingSummary
-): string | null {
-  const originProductNo = listing.remoteRefs.originProductNo
-  const byPlatformId = refs.find(
-    (ref) => ref.platformProductId !== null && ref.platformProductId === originProductNo
-  )
-  if (byPlatformId) return byPlatformId.supplierId
-
-  if (listing.sku) {
-    const bySku = refs.find((ref) => ref.sku !== null && ref.sku === listing.sku)
-    if (bySku) return bySku.supplierId
-  }
-  return null
-}
-
-// ------------------------------------------------------------------
 // Products
 // ------------------------------------------------------------------
 
@@ -84,7 +35,6 @@ export async function runProductSync(
   supabase: RedesignClient,
   account: MarketAccountRow,
   adapter: MarketAdapter,
-  mode: 'initial' | 'refresh' = 'refresh',
   options: SyncRunOptions = {},
 ): Promise<SyncOutcome> {
   const startedAt = new Date().toISOString()
@@ -108,8 +58,6 @@ export async function runProductSync(
     return { success: false, processed: 0, failed: 0, error: message }
   }
 
-  const legacyRefs = mode === 'initial' ? await loadLegacySupplierRefs(supabase) : []
-
   let processed = 0
   let failed = 0
 
@@ -131,7 +79,7 @@ export async function runProductSync(
           .update({ remote_status: remote.remoteStatus, remote_refs: remote.remoteRefs })
           .eq('id', listingId)
       } else {
-        // 2. Master by SKU, or create one (initial migration path)
+        // 2. Master by SKU, or create one (supplier is assigned in the UI)
         let masterProductId: string | null = null
         if (remote.sku) {
           const { data: bySku } = await supabase
@@ -155,7 +103,6 @@ export async function runProductSync(
               brand: remote.brand,
               category_text: remote.category,
               image_url: remote.imageUrl,
-              supplier_id: findLegacySupplier(legacyRefs, remote),
             })
             .select('id')
             .single()

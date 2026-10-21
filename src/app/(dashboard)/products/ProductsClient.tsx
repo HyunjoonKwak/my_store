@@ -190,7 +190,7 @@ export function ProductsClient({ initialProducts, accounts, loadError }: Product
     setIsSyncing(true)
     try {
       for (const account of targets) {
-        const result = await syncProductsFromMarket(account.id, 'initial')
+        const result = await syncProductsFromMarket(account.id)
         if (result.success) {
           toast.success(`${account.name}: ${result.syncedCount}개 상품 동기화`)
         } else {

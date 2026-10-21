@@ -103,7 +103,7 @@ export async function GET(request: Request) {
       ran.orders = { processed: outcome.processed, failed: outcome.failed, error: outcome.error }
     }
     if (schedule.sync_type === 'products' || schedule.sync_type === 'both') {
-      const outcome = await runProductSync(supabase, account, adapter, 'refresh', {
+      const outcome = await runProductSync(supabase, account, adapter, {
         scheduleId: schedule.id,
       })
       ran.products = { processed: outcome.processed, failed: outcome.failed, error: outcome.error }
