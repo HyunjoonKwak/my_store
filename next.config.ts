@@ -5,12 +5,7 @@ const nextConfig: NextConfig = {
   // Keep browser-automation packages external so their runtime assets
   // (e.g. playwright-core/browsers.json) are traced into the standalone
   // output instead of being bundled without them
-  serverExternalPackages: [
-    'playwright-core',
-    'puppeteer-core',
-    'puppeteer-extra',
-    'puppeteer-extra-plugin-stealth',
-  ],
+  serverExternalPackages: ['playwright-core'],
   outputFileTracingIncludes: {
     '/api/analyze/**': ['./node_modules/playwright-core/browsers.json'],
   },
