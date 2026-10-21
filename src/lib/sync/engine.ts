@@ -1,5 +1,8 @@
 import 'server-only'
 
+import { sendSyncSummaryAlert } from '@/lib/notifications/store-alerts'
+import { countNewOrders } from './new-orders.ts'
+
 import type { MarketAdapter, NormalizedOrder, RemoteListingSummary } from '@/lib/markets/types'
 import type {
   MarketAccountRow,
@@ -258,6 +261,20 @@ export async function runOrderSync(
     return { success: false, processed: 0, failed: 0, error: message }
   }
 
+  // Snapshot known refs before upserting so the alert counts only new orders
+  const fetchedRefs = orders.map((order) => order.marketOrderRef)
+  const { data: knownRows } = fetchedRefs.length
+    ? await supabase
+        .from('orders')
+        .select('market_order_ref')
+        .eq('market_account_id', marketAccountId)
+        .in('market_order_ref', fetchedRefs)
+    : { data: [] }
+  const newOrders = countNewOrders(
+    fetchedRefs,
+    (knownRows || []).map((row) => row.market_order_ref as string),
+  )
+
   // Resolve listings once for item → master/supplier linking
   const { data: listingRows } = await supabase
     .from('market_listings')
@@ -378,7 +395,24 @@ export async function runOrderSync(
     startedAt,
   })
 
+  await notifyNewOrders(account, newOrders)
+
   return { success: true, processed, failed, error: null }
+}
+
+// Discord alert per settings > 알림 (market_accounts.notification_*).
+// Best effort: a failed webhook never fails the sync.
+async function notifyNewOrders(account: MarketAccountRow, newOrders: number): Promise<void> {
+  if (newOrders === 0 || !account.notification_enabled || !account.notification_webhook_url) {
+    return
+  }
+  const result = await sendSyncSummaryAlert({
+    webhookUrl: account.notification_webhook_url,
+    summary: { newOrders, cancelRequests: 0, deliveryComplete: 0 },
+  })
+  if (!result.success) {
+    console.error('New order alert failed:', result.error)
+  }
 }
 
 // ------------------------------------------------------------------
