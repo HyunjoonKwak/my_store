@@ -34,7 +34,9 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
 6. 주문 화면에서 "주문 동기화" 실행, 데이터 검증
 7. `npm run test:e2e` — 갱신된 여정 검증
 8. 검증 후 `redesign` → `main` 병합, ship 배포
-9. Supabase typegen으로 `src/types/redesign.types.ts` 대체, `199_drop_legacy.sql` 작성(legacy_* 테이블 제거) ← **유일하게 남은 항목 (충분히 운영 후)**
+9. ~~`199_drop_legacy.sql` 작성(legacy_* 테이블 제거)~~ → **2026-10-21 운영 적용 완료**(직전 JSON 백업
+   `backups/2026-10-21/`). 남은 것: Supabase typegen으로 `src/types/redesign.types.ts`·`database.types.ts`
+   통합(선택, 수기 타입으로 동작 중)
 
 ## 알려진 잔여 (이번 재설계 범위 밖)
 
@@ -125,10 +127,15 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
   컴포넌트 15곳(AIGeneratorStudio·settings·tracking 등)을 오류로 잡으므로 별도 리팩터링 후 해제.
 - **주문 0건 확인**: 주문 동기화는 매 실행 최근 7일 결제 주문을 상태 필터 없이 가져온다.
   30일간 0건은 실제 주문이 없었던 것(legacy 시절 누적 주문도 1건).
-- 마이그레이션 140은 postgres:15에서 legacy 001-017 → 100~130 체인 위 적용·2회 재적용(멱등)·
-  데이터 이관 결과를 검증했다. **운영 적용은 코드 배포 전에 대시보드에서.**
+- 마이그레이션 140은 postgres:15에서 legacy 001-017 → 100~130 체인 위 적용·재적용·
+  데이터 이관 결과를 검증한 뒤 운영에 적용했다(택배 4건 이관, 벤치마크 1건 재연결).
+  배포 직후 강제 tick에서 스냅샷 6,840건 정리, 상품 9건 동기화 정상.
+- **legacy 테이블 제거(199)**: 상품 동기화의 `initial` 모드(legacy_products에서 공급업체 재연결)를
+  없애 앱이 legacy_*를 전혀 읽지 않게 한 뒤, 백업을 받고 운영에서 9개 테이블을 삭제했다.
+  199는 CASCADE 없이 한 문장으로 지우므로 140 이전에 실행하면 FK 의존 때문에 실패한다(의도된 안전장치).
 
-## 저장소 정리 (사용자 확인 후 실행)
+## 저장소 정리 — 2026-10-21 확인 완료
 
-- `detailpage_maker` — 이식 완료, archive 대상
-- `withus_manager` — 선별 흡수 완료, archive 대상
+- `detailpage_maker` — 이식 완료. 원격 `page_maker`는 GitHub에서 이미 archive 상태, 로컬은 `~/code_work/archive/`
+- `withus_manager` — 선별 흡수 완료. GitHub에 저장소가 없음(삭제됨), 로컬은 `~/code_work/archive/`
+  (`stage_2`에 push 안 된 커밋 1개: 주문관리 템플릿 수정 — 로컬에만 남아 있음)
