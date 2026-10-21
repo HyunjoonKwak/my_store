@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { buildSyncRunRow } from '../src/lib/sync/run-row.ts'
-import { SYNC_RUN_RETENTION_DAYS, syncRunRetentionCutoff } from '../src/lib/sync/retention.ts'
+import {
+  LISTING_SNAPSHOT_RETENTION_DAYS,
+  SYNC_RUN_RETENTION_DAYS,
+  listingSnapshotRetentionCutoff,
+  syncRunRetentionCutoff,
+} from '../src/lib/sync/retention.ts'
 
 const base = {
   marketAccountId: 'acc-1',
@@ -65,4 +70,10 @@ test('syncRunRetentionCutoff: honours an explicit window', () => {
 test('syncRunRetentionCutoff: rejects a non-positive window', () => {
   assert.throws(() => syncRunRetentionCutoff(new Date(), 0))
   assert.throws(() => syncRunRetentionCutoff(new Date(), Number.NaN))
+})
+
+test('listingSnapshotRetentionCutoff: defaults to 30 days before now', () => {
+  assert.equal(LISTING_SNAPSHOT_RETENTION_DAYS, 30)
+  const now = new Date('2026-10-21T00:00:00.000Z')
+  assert.equal(listingSnapshotRetentionCutoff(now), '2026-09-21T00:00:00.000Z')
 })

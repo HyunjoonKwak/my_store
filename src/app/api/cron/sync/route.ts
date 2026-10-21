@@ -5,7 +5,7 @@ import { decryptApiConfigSecrets } from '@/lib/secret-crypto'
 import { createAdapter, type MarketApiConfig } from '@/lib/markets/registry'
 import { runOrderSync, runProductSync } from '@/lib/sync/engine'
 import { isScheduleDue } from '@/lib/sync/due'
-import { syncRunRetentionCutoff } from '@/lib/sync/retention'
+import { listingSnapshotRetentionCutoff, syncRunRetentionCutoff } from '@/lib/sync/retention'
 import type {
   MarketAccountRow,
   RedesignClient,
@@ -134,10 +134,24 @@ export async function GET(request: Request) {
     pruned = count
   }
 
+  // Same idea for listing_snapshots; the SQL function (migration 140) keeps
+  // each listing's latest snapshot regardless of age.
+  let prunedSnapshots: number | null = null
+  const { data: snapshotCount, error: snapshotPruneError } = await supabase.rpc(
+    'prune_listing_snapshots',
+    { cutoff: listingSnapshotRetentionCutoff(now) },
+  )
+  if (snapshotPruneError) {
+    console.error('listing_snapshots retention prune failed:', snapshotPruneError.message)
+  } else {
+    prunedSnapshots = snapshotCount
+  }
+
   return NextResponse.json({
     ok: true,
     checkedAt: now.toISOString(),
     prunedRuns: pruned,
+    prunedSnapshots,
     scheduleCount: schedules.length,
     executed: results.filter((r) => !r.skipped).length,
     results,

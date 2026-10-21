@@ -14,3 +14,13 @@ export function syncRunRetentionCutoff(
   }
   return new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000).toISOString()
 }
+
+// listing_snapshots gets one row per listing on every product pull (~6,400
+// rows a month for 9 listings on an hourly schedule). Only the latest
+// snapshot per listing is read, so a short window is enough; the prune
+// function (migration 140) always keeps each listing's latest row.
+export const LISTING_SNAPSHOT_RETENTION_DAYS = 30
+
+export function listingSnapshotRetentionCutoff(now: Date = new Date()): string {
+  return syncRunRetentionCutoff(now, LISTING_SNAPSHOT_RETENTION_DAYS)
+}
