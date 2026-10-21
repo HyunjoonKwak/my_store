@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import { rateLimitDelayMs, shouldRetryRateLimit } from './retry.ts'
 
 const NAVER_API_BASE_URL = 'https://api.commerce.naver.com'
 
@@ -104,7 +105,16 @@ export class NaverCommerceClient {
       options.body = JSON.stringify(body)
     }
 
-    const response = await fetch(`${NAVER_API_BASE_URL}${endpoint}`, options)
+    let response = await fetch(`${NAVER_API_BASE_URL}${endpoint}`, options)
+
+    for (let attempt = 0; shouldRetryRateLimit(response.status, attempt); attempt++) {
+      const delay = rateLimitDelayMs(attempt, response.headers.get('retry-after'))
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      response = await fetch(`${NAVER_API_BASE_URL}${endpoint}`, {
+        ...options,
+        signal: AbortSignal.timeout(10_000),
+      })
+    }
 
     if (!response.ok) {
       const error = await response.text()
