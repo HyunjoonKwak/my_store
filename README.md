@@ -23,7 +23,7 @@
 - **주문 관리**: 주문 목록 조회, 상태 관리, 배송 처리, 공급업체 발주
 - **재고 관리**: 상품별 재고 현황, 입/출고 관리, 저재고 알림
 - **공급업체 관리**: 공급업체 정보 관리, 발주 메시지 생성
-- **AI 상세페이지 생성**: OpenAI 기반 상품 설명 자동 생성
+- **AI 상세페이지 생성**: Claude 기반 상품 설명 자동 생성
 - **벤치마킹 분석**: 경쟁사 상세페이지 비교, 메모/체크리스트/자료함
 - **자동 동기화**: 네이버 스마트스토어 API 연동 (주문/상품 자동 동기화)
 - **배송 추적**: 한진/롯데택배 실시간 배송 상태 조회
@@ -35,7 +35,7 @@
 - **Styling**: Tailwind CSS, Shadcn/UI
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Auth
-- **AI**: OpenAI GPT-4o
+- **AI**: Anthropic Claude Haiku
 - **Deployment**: Docker (Synology NAS) / GHCR
 
 ## 시작하기

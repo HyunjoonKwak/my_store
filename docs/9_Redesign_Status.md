@@ -63,11 +63,12 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
   기동하지 않는다(`:?`). 상한은 서버 액션과 DB CHECK 양쪽에서 0~100,000원으로 막는다 —
   RLS가 브라우저의 직접 UPDATE를 허용하기 때문. 2026-08-20 마이그레이션 120 적용 및
   NAS 배포 완료(healthy).
-- **설정 legacy 탭**: 서비스 연동(IntegrationsTab)·알림 탭이 legacy stores.api_config 기준
-  (자동화·AI 탭은 재작성 완료). 마켓 계정 탭이 새 경로. (OpenAI 키 입력란은 이미 제거됨)
+- ~~**설정 legacy 탭**~~ → **2026-10-21 이전 완료**. 서비스 연동·알림 탭이 대표 네이버 마켓 계정
+  (`lib/markets/primary-account.ts`)을 읽고 쓴다. 아래 2026-10-21 절 참고.
 - **네이버 상세편집기(11탭)**: 구 inventory 상세편집기 삭제됨. 옵션·이미지·SEO 등 심화 편집은 새 리스팅 편집기 미지원 — 필요 시 remote_ref 기준으로 이식(네이버 판매자센터로 대체 가능)
 - **엑셀 상품 업로드**: excel-upload 액션 삭제. master_products 기준 재구현 필요 시 별도 작업
-- **tracking / benchmarking / analysis**: legacy 스키마와 무관하거나(carriers) 독립 테이블이라 그대로 동작. benchmark의 상품 연결(SelectProductDialog)만 legacy products 참조 여부 확인 필요
+- ~~**tracking / benchmarking**~~ → **2026-10-21 이전 완료**. 둘 다 실제로는 legacy 테이블을
+  참조해 깨져 있었다(아래 절). analysis는 독립 테이블이라 영향 없음.
 - **쿠팡 WING API**: 어댑터 스텁 상태. publishListing 등 구현 시 `src/lib/markets/coupang/adapter.ts`만 수정하면 됨
 
 ## 2026-09-14 운영 점검 후 개선
@@ -93,6 +94,39 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
   `cloudflare-ddns` 재기동 + `unless-stopped`.
 - **미해결**: 운영 컨테이너 `ANTHROPIC_API_KEY`가 비어 있고 `user_settings`도 0행이라 AI 기능은
   현재 `no_key` 상태. 설정 > AI 탭에서 키를 넣어야 동작한다.
+
+## 2026-10-21 상태 점검 후 개선
+
+점검에서 **DB에 없는 테이블(`stores`·`products`·`delivery_trackings`)을 조회하는 코드**가 남아
+운영에서 깨져 있던 것을 확인했다. 마이그레이션 100이 이 셋을 `legacy_*`로 리네임했기 때문.
+
+- **설정·커머스 API**: "스토어"를 사용자의 대표 네이버 마켓 계정(활성 우선, 가장 오래된 것)으로
+  해석한다(`getPrimaryNaverAccount`). 기본 정보·커머스 키·NAVER API HUB 키·Discord 웹훅이 모두
+  `market_accounts`에 저장된다. `/api/commerce/*`·`/api/trends/*`도 같은 경로로 키를 읽는다.
+  **API HUB 키는 legacy에도 없었으므로 쓰려면 설정 > 서비스 연동에서 새로 입력해야 한다.**
+- **택배 추적(/tracking)**: 사용자 단위 `delivery_trackings` 테이블을 새로 만들고 legacy 4건을
+  이관(마이그레이션 140).
+- **벤치마킹 상품 선택**: `master_products` + 네이버 리스팅(`remote_ref` = channelProductNo) 기준.
+  `benchmark_sessions.my_product_id` FK를 `master_products`로 옮기고 기존 값을 리스팅으로 매핑.
+- **공급업체 상품 수**: `master_products.supplier_id` 기준.
+- **죽은 코드 삭제**: `actions/naver-sync.ts`(1,968줄, `testNaverConnection`만 settings로 이동),
+  `actions/inquiries.ts`, `/api/cron/check-delivery`(Vercel cron 전용, NAS 미사용),
+  `/api/logistics/register`, `lib/logistics/hanjin.ts`, `lib/stores/current-store.ts`,
+  `lib/scraper/puppeteer-scraper.ts`(+ puppeteer 패키지 3종).
+- **listing_snapshots 보존**: 상품 동기화마다 리스팅당 1행이 쌓여 월 ~6,400행. cron tick이
+  `prune_listing_snapshots(cutoff)`(마이그레이션 140, service_role 전용)로 30일 지난 행을 지우되
+  리스팅별 최신 1건은 남긴다(앱은 최신만 읽음). 응답에 `prunedSnapshots`.
+- **네이버 429 재시도**: `lib/naver/retry.ts` — 429만 최대 2회, Retry-After 또는 지수 백오프+지터,
+  최대 5초. 이번 달 `GW.RATE_LIMIT` 실패 2건 대응.
+- **Discord 신규 주문 알림 복구**: 웹훅 발송은 삭제된 legacy 주문 동기화에만 있었다. 이제 주문
+  동기화 엔진이 새로 저장된 주문 수를 세어(`lib/sync/new-orders.ts`) 계정 알림이 켜져 있으면 보낸다.
+- **의존성**: next 16.4.2, `npm audit fix` → 프로덕션 취약점 0건. 남은 high 5건은 eslint 개발
+  의존성 전용. `eslint-plugin-react-hooks`는 7.0.1 고정 — 7.1.1의 React Compiler 규칙이 기존
+  컴포넌트 15곳(AIGeneratorStudio·settings·tracking 등)을 오류로 잡으므로 별도 리팩터링 후 해제.
+- **주문 0건 확인**: 주문 동기화는 매 실행 최근 7일 결제 주문을 상태 필터 없이 가져온다.
+  30일간 0건은 실제 주문이 없었던 것(legacy 시절 누적 주문도 1건).
+- 마이그레이션 140은 postgres:15에서 legacy 001-017 → 100~130 체인 위 적용·2회 재적용(멱등)·
+  데이터 이관 결과를 검증했다. **운영 적용은 코드 배포 전에 대시보드에서.**
 
 ## 저장소 정리 (사용자 확인 후 실행)
 
