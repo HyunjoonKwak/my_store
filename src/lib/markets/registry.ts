@@ -9,6 +9,9 @@ export interface MarketApiConfig {
   naverClientId?: string
   naverClientSecret?: string
   naverSellerId?: string
+  // NAVER API HUB (keyword trends), stored on the primary naver account
+  naverApiHubClientId?: string
+  naverApiHubClientSecret?: string
   // coupang
   coupangAccessKey?: string
   coupangSecretKey?: string

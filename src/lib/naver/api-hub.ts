@@ -1,8 +1,7 @@
 import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
-import { decryptApiConfigSecrets } from '@/lib/secret-crypto'
+import { createRedesignClient } from '@/lib/supabase/redesign-server'
+import { getPrimaryNaverConfig } from '@/lib/markets/primary-account'
 
 const API_HUB_BASE = 'https://naverapihub.apigw.ntruss.com'
 
@@ -15,31 +14,22 @@ export async function getCurrentApiHubConfig(): Promise<{
   config: ApiHubConfig | null
   error: string | null
 }> {
-  const supabase = await createClient()
+  const supabase = await createRedesignClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { config: null, error: '로그인이 필요합니다.' }
 
-  const storeId = await resolveCurrentStoreId(supabase, user.id)
-  if (!storeId) return { config: null, error: '스토어 설정을 먼저 완료해주세요.' }
+  const { config, error } = await getPrimaryNaverConfig(supabase, user.id)
+  if (!config) return { config: null, error }
 
-  const { data: store, error } = await supabase
-    .from('stores')
-    .select('api_config')
-    .eq('id', storeId)
-    .maybeSingle()
-
-  if (error || !store) return { config: null, error: error?.message || '스토어를 찾을 수 없습니다.' }
-  const config = (store.api_config || {}) as ApiHubConfig
   if (!config.naverApiHubClientId || !config.naverApiHubClientSecret) {
     return { config: null, error: '설정에서 NAVER API HUB 키를 입력해주세요.' }
   }
-
-  // Secrets are stored encrypted at rest; legacy plaintext passes through unchanged
-  try {
-    return { config: decryptApiConfigSecrets(config), error: null }
-  } catch (error) {
-    console.error('Failed to decrypt NAVER API HUB secret:', error)
-    return { config: null, error: '저장된 NAVER API HUB 키를 복호화할 수 없습니다. 서버 암호화 키 설정을 확인해주세요.' }
+  return {
+    config: {
+      naverApiHubClientId: config.naverApiHubClientId,
+      naverApiHubClientSecret: config.naverApiHubClientSecret,
+    },
+    error: null,
   }
 }
 

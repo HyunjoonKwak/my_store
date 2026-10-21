@@ -13,8 +13,8 @@ import {
   getStoreProfile,
   createOrUpdateStore,
   updateNotificationSettings,
+  testNaverConnection,
 } from '@/lib/actions/settings'
-import { testNaverConnection } from '@/lib/actions/naver-sync'
 import { useDefaultFolder } from '@/hooks/useDefaultFolder'
 import type { Platform } from '@/types/database.types'
 import { type ApiConnectionState } from './components/ApiStatusBadge'

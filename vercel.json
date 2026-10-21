@@ -5,10 +5,6 @@
     {
       "path": "/api/cron/sync",
       "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/check-delivery",
-      "schedule": "0 * * * *"
     }
   ],
   "headers": [

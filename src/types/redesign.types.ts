@@ -258,6 +258,29 @@ export type StudioTemplateRow = {
   updated_at: string
 }
 
+// Standalone parcel tracking (/tracking), user-scoped since migration 140
+export type DeliveryTrackingRow = {
+  id: string
+  user_id: string
+  carrier_id: string
+  carrier_name: string
+  tracking_number: string
+  status: 'IN_PROGRESS' | 'DELIVERED'
+  latest_event_status: string | null
+  latest_event_time: string | null
+  latest_event_description: string | null
+  sender_name: string | null
+  sender_address: string | null
+  recipient_name: string | null
+  recipient_address: string | null
+  product_name: string | null
+  memo: string | null
+  events: Json
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 // Kept from the legacy schema and reused as-is by the redesign
 export type SupplierRowLite = {
   id: string
@@ -286,9 +309,13 @@ export type RedesignDatabase = {
       interview_generations: TableShape<InterviewGenerationRow>
       studio_templates: TableShape<StudioTemplateRow>
       suppliers: TableShape<SupplierRowLite>
+      delivery_trackings: TableShape<DeliveryTrackingRow>
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      // Migration 140; executable by service_role only
+      prune_listing_snapshots: { Args: { cutoff: string }; Returns: number }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

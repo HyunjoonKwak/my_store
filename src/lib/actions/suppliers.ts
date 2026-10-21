@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createRedesignClient } from '@/lib/supabase/redesign-server'
 import { revalidatePath } from 'next/cache'
 import type { ContactMethod } from '@/types/database.types'
 import { parseError, formatErrorMessage } from '@/lib/error-messages'
@@ -64,8 +65,10 @@ export async function getSuppliers(): Promise<{ data: SupplierWithStats[] | null
 
   const typedSuppliers = suppliers as unknown as SupplierRow[]
 
-  const { data: productCounts } = await supabase
-    .from('products')
+  // master_products carries supplier_id since the market-neutral redesign
+  const redesign = await createRedesignClient()
+  const { data: productCounts } = await redesign
+    .from('master_products')
     .select('supplier_id')
     .in('supplier_id', typedSuppliers.map((s) => s.id))
 

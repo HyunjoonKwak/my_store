@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createRedesignClient } from '@/lib/supabase/redesign-server'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/actions/auth-guard'
 import type {
@@ -692,68 +693,60 @@ export async function getProductsForBenchmark(): Promise<{
   data: ProductForBenchmark[] | null
   error: string | null
 }> {
-  const supabase = await createClient()
+  const supabase = await createRedesignClient()
 
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
     return { data: null, error: 'Unauthorized' }
   }
 
-  const { data: stores } = await supabase
-    .from('stores')
-    .select('id, store_name, api_config')
+  // Selectable products are master products with a Naver listing;
+  // remote_ref on a naver listing is the channelProductNo
+  const { data: accounts, error: accountError } = await supabase
+    .from('market_accounts')
+    .select('id, name')
     .eq('user_id', userData.user.id)
+    .eq('platform', 'naver')
 
-  if (!stores || stores.length === 0) {
-    return { data: [], error: null }
-  }
+  if (accountError) return { data: null, error: accountError.message }
+  if (!accounts || accounts.length === 0) return { data: [], error: null }
 
-  const storeIds = stores.map((s) => s.id)
+  const accountNames = new Map(accounts.map((a) => [a.id as string, a.name as string]))
 
-  interface StoreRow {
-    id: string
-    store_name: string
-    api_config: { storeUrl?: string } | null
-  }
-  const typedStores = stores as unknown as StoreRow[]
-  const storeMap = new Map(typedStores.map((s) => [s.id, {
-    name: s.store_name,
-    urlName: s.api_config?.storeUrl || null,
-  }]))
+  const { data: listings, error } = await supabase
+    .from('market_listings')
+    .select('master_product_id, market_account_id, remote_ref, remote_refs')
+    .in('market_account_id', [...accountNames.keys()])
+    .not('remote_ref', 'is', null)
 
-  interface ProductRow {
-    id: string
-    name: string
-    image_url: string | null
-    platform_product_id: string | null
-    naver_channel_product_no: number | null
-    store_id: string
-  }
+  if (error) return { data: null, error: error.message }
 
-  const { data: products, error } = await supabase
-    .from('products')
-    .select('id, name, image_url, platform_product_id, naver_channel_product_no, store_id')
-    .in('store_id', storeIds)
-    .or('naver_channel_product_no.not.is.null,platform_product_id.not.is.null')
+  const listingByProduct = new Map(
+    (listings || []).map((l) => [l.master_product_id as string, l])
+  )
+  if (listingByProduct.size === 0) return { data: [], error: null }
+
+  const { data: products, error: productError } = await supabase
+    .from('master_products')
+    .select('id, name, image_url')
+    .in('id', [...listingByProduct.keys()])
     .order('name', { ascending: true })
 
-  if (error) {
-    return { data: null, error: error.message }
-  }
-
-  const typedProducts = products as unknown as ProductRow[]
+  if (productError) return { data: null, error: productError.message }
 
   return {
-    data: typedProducts.map((p) => {
-      const store = storeMap.get(p.store_id)
+    data: (products || []).map((p) => {
+      const listing = listingByProduct.get(p.id as string)!
+      const refs = (listing.remote_refs || {}) as { originProductNo?: string }
+      const channelProductNo = Number(listing.remote_ref)
       return {
-        id: p.id,
-        name: p.name,
-        imageUrl: p.image_url,
-        platformProductId: p.platform_product_id,
-        channelProductNo: p.naver_channel_product_no,
-        storeName: store?.name || '',
-        storeUrlName: store?.urlName || null,
+        id: p.id as string,
+        name: p.name as string,
+        imageUrl: (p.image_url as string | null) ?? null,
+        platformProductId: refs.originProductNo ?? null,
+        channelProductNo: Number.isFinite(channelProductNo) ? channelProductNo : null,
+        storeName: accountNames.get(listing.market_account_id as string) || '',
+        storeUrlName: null,
       }
     }),
     error: null,

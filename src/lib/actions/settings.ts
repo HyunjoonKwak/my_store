@@ -1,10 +1,12 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { Platform, Json } from '@/types/database.types'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { createRedesignClient } from '@/lib/supabase/redesign-server'
+import { getPrimaryNaverAccount } from '@/lib/markets/primary-account'
+import { getCurrentNaverClient } from '@/lib/naver/current-client'
 import { encryptApiConfigSecrets } from '@/lib/secret-crypto'
+import type { Platform } from '@/types/database.types'
+import type { Json } from '@/types/redesign.types'
 
 export interface UserProfile {
   id: string
@@ -12,6 +14,8 @@ export interface UserProfile {
   role: string
 }
 
+// The settings "store" is the user's primary Naver market account
+// (see getPrimaryNaverAccount); the shape is kept for the settings UI.
 export interface StoreProfile {
   id: string
   storeName: string
@@ -26,23 +30,10 @@ export interface StoreProfile {
     naverApiHubClientId?: string
     naverApiHubClientSecret?: string
   }
-  deliveryCheckSettings?: {
-    times: number[]
-    enabled: boolean
-  }
   notificationSettings?: {
     webhookUrl: string
     enabled: boolean
   }
-}
-
-interface StoreRow {
-  id: string
-  store_name: string
-  platform: string
-  api_config: Json
-  notification_webhook_url?: string | null
-  notification_enabled?: boolean | null
 }
 
 interface ApiConfigJson {
@@ -50,12 +41,16 @@ interface ApiConfigJson {
   naverClientSecret?: string
   naverApiHubClientId?: string
   naverApiHubClientSecret?: string
-  deliveryCheckTimes?: number[] // 배송확인 시간 (KST 시간, 예: [9, 15, 21])
-  deliveryCheckEnabled?: boolean
+}
+
+async function getSessionUserId() {
+  const supabase = await createRedesignClient()
+  const { data: userData } = await supabase.auth.getUser()
+  return { supabase, userId: userData.user?.id ?? null }
 }
 
 export async function getUserProfile(): Promise<{ data: UserProfile | null; error: string | null }> {
-  const supabase = await createClient()
+  const supabase = await createRedesignClient()
 
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) {
@@ -73,51 +68,34 @@ export async function getUserProfile(): Promise<{ data: UserProfile | null; erro
 }
 
 export async function getStoreProfile(): Promise<{ data: StoreProfile | null; error: string | null }> {
-  const supabase = await createClient()
+  const { supabase, userId } = await getSessionUserId()
+  if (!userId) return { data: null, error: 'Unauthorized' }
 
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { data: null, error: 'Unauthorized' }
-  }
+  const { account, error } = await getPrimaryNaverAccount(supabase, userId)
+  if (error) return { data: null, error }
+  if (!account) return { data: null, error: null }
 
-  const { data: store, error } = await supabase
-    .from('stores')
-    .select('*')
-    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return { data: null, error: null }
-    }
-    return { data: null, error: error.message }
-  }
-
-  const typedStore = store as unknown as StoreRow
-  const apiConfig = (typedStore.api_config || {}) as ApiConfigJson
+  const apiConfig = (account.api_config || {}) as ApiConfigJson
 
   return {
     data: {
-      id: typedStore.id,
-      storeName: typedStore.store_name,
-      platform: typedStore.platform as Platform,
+      id: account.id,
+      storeName: account.name,
+      platform: 'Naver',
       apiConfigStatus: {
         naverCommerce: Boolean(apiConfig.naverClientId && apiConfig.naverClientSecret),
         naverApiHub: Boolean(apiConfig.naverApiHubClientId && apiConfig.naverApiHubClientSecret),
       },
+      // Credential values never leave the server
       apiConfig: {
         naverClientId: '',
         naverClientSecret: '',
         naverApiHubClientId: '',
         naverApiHubClientSecret: '',
       },
-      deliveryCheckSettings: {
-        times: apiConfig.deliveryCheckTimes || [9, 15, 21],
-        enabled: apiConfig.deliveryCheckEnabled ?? true,
-      },
       notificationSettings: {
-        webhookUrl: typedStore.notification_webhook_url || '',
-        enabled: typedStore.notification_enabled ?? false,
+        webhookUrl: account.notification_webhook_url || '',
+        enabled: account.notification_enabled ?? false,
       },
     },
     error: null,
@@ -136,104 +114,44 @@ interface CreateOrUpdateStoreInput {
 export async function createOrUpdateStore(
   input: CreateOrUpdateStoreInput
 ): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
+  const { supabase, userId } = await getSessionUserId()
+  if (!userId) return { success: false, error: 'Unauthorized' }
 
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { success: false, error: 'Unauthorized' }
+  const storeName = input.storeName.trim()
+  if (!storeName || storeName.length > 100) {
+    return { success: false, error: '스토어 이름은 1~100자로 입력해주세요.' }
   }
 
-  const currentStoreId = await resolveCurrentStoreId(supabase, userData.user.id)
-  const { data: existingStore } = await supabase
-    .from('stores')
-    .select('id, api_config')
-    .eq('id', currentStoreId || '')
-    .maybeSingle()
+  const { account, error: lookupError } = await getPrimaryNaverAccount(supabase, userId)
+  if (lookupError) return { success: false, error: lookupError }
 
-  const apiConfig: Record<string, string> = {
-    ...((existingStore?.api_config || {}) as Record<string, string>),
+  // Merge over the stored config so partial credential updates keep untouched keys
+  const apiConfig: Record<string, unknown> = {
+    ...((account?.api_config || {}) as Record<string, unknown>),
   }
-  if (input.naverClientId) apiConfig.naverClientId = input.naverClientId
-  if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret
-  if (input.naverApiHubClientId) apiConfig.naverApiHubClientId = input.naverApiHubClientId
-  if (input.naverApiHubClientSecret) apiConfig.naverApiHubClientSecret = input.naverApiHubClientSecret
+  if (input.naverClientId) apiConfig.naverClientId = input.naverClientId.trim()
+  if (input.naverClientSecret) apiConfig.naverClientSecret = input.naverClientSecret.trim()
+  if (input.naverApiHubClientId) apiConfig.naverApiHubClientId = input.naverApiHubClientId.trim()
+  if (input.naverApiHubClientSecret) {
+    apiConfig.naverApiHubClientSecret = input.naverApiHubClientSecret.trim()
+  }
 
   // Encrypt secret fields before persisting so the anon client only sees ciphertext
-  const storedApiConfig = encryptApiConfigSecrets(apiConfig)
+  const storedApiConfig = encryptApiConfigSecrets(apiConfig) as Json
 
-  if (existingStore) {
-    const { error } = await supabase
-      .from('stores')
-      .update({
-        store_name: input.storeName,
-        platform: input.platform,
+  const { error } = account
+    ? await supabase
+        .from('market_accounts')
+        .update({ name: storeName, api_config: storedApiConfig })
+        .eq('id', account.id)
+    : await supabase.from('market_accounts').insert({
+        user_id: userId,
+        platform: 'naver',
+        name: storeName,
         api_config: storedApiConfig,
       })
-      .eq('id', existingStore.id)
 
-    if (error) {
-      return { success: false, error: error.message }
-    }
-  } else {
-    const { error } = await supabase.from('stores').insert({
-      user_id: userData.user.id,
-      store_name: input.storeName,
-      platform: input.platform,
-      api_config: storedApiConfig,
-    })
-
-    if (error) {
-      return { success: false, error: error.message }
-    }
-  }
-
-  revalidatePath('/settings')
-  revalidatePath('/inventory')
-  return { success: true, error: null }
-}
-
-export interface DeliveryCheckSettingsInput {
-  times: number[]
-  enabled: boolean
-}
-
-export async function updateDeliveryCheckSettings(
-  input: DeliveryCheckSettingsInput
-): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
-
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { success: false, error: 'Unauthorized' }
-  }
-
-  const { data: existingStore } = await supabase
-    .from('stores')
-    .select('id, api_config')
-    .eq('user_id', userData.user.id)
-    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-    .maybeSingle()
-
-  if (!existingStore) {
-    return { success: false, error: '스토어를 먼저 생성해주세요.' }
-  }
-
-  const currentConfig = (existingStore.api_config || {}) as ApiConfigJson
-  const updatedConfig = {
-    ...currentConfig,
-    deliveryCheckTimes: input.times,
-    deliveryCheckEnabled: input.enabled,
-  }
-
-  const { error } = await supabase
-    .from('stores')
-    // Re-encrypt any legacy plaintext secrets carried over from the existing config
-    .update({ api_config: encryptApiConfigSecrets(updatedConfig) })
-    .eq('id', existingStore.id)
-
-  if (error) {
-    return { success: false, error: error.message }
-  }
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/settings')
   return { success: true, error: null }
@@ -247,36 +165,43 @@ export interface NotificationSettingsInput {
 export async function updateNotificationSettings(
   input: NotificationSettingsInput
 ): Promise<{ success: boolean; error: string | null }> {
-  const supabase = await createClient()
+  const { supabase, userId } = await getSessionUserId()
+  if (!userId) return { success: false, error: 'Unauthorized' }
 
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { success: false, error: 'Unauthorized' }
+  const webhookUrl = input.webhookUrl.trim()
+  if (webhookUrl && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(webhookUrl)) {
+    return { success: false, error: 'Discord 웹훅 URL 형식이 아닙니다.' }
   }
 
-  const { data: existingStore } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userData.user.id)
-    .eq('id', await resolveCurrentStoreId(supabase, userData.user.id) || '')
-    .maybeSingle()
-
-  if (!existingStore) {
-    return { success: false, error: '스토어를 먼저 생성해주세요.' }
+  const { account, error: lookupError } = await getPrimaryNaverAccount(supabase, userId)
+  if (lookupError) return { success: false, error: lookupError }
+  if (!account) {
+    return { success: false, error: '설정 > 마켓 계정에서 스마트스토어 계정을 먼저 추가해주세요.' }
   }
 
   const { error } = await supabase
-    .from('stores')
+    .from('market_accounts')
     .update({
-      notification_webhook_url: input.webhookUrl || null,
+      notification_webhook_url: webhookUrl || null,
       notification_enabled: input.enabled,
     })
-    .eq('id', existingStore.id)
+    .eq('id', account.id)
 
-  if (error) {
-    return { success: false, error: error.message }
-  }
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/settings')
   return { success: true, error: null }
+}
+
+export async function testNaverConnection(): Promise<{ success: boolean; error: string | null }> {
+  const { client, error } = await getCurrentNaverClient()
+  if (!client) return { success: false, error }
+
+  try {
+    await client.getAccessToken()
+    return { success: true, error: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '연결 테스트 실패'
+    return { success: false, error: message }
+  }
 }

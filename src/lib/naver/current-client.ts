@@ -1,15 +1,8 @@
 import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
-import { resolveCurrentStoreId } from '@/lib/stores/current-store'
+import { createRedesignClient } from '@/lib/supabase/redesign-server'
+import { getPrimaryNaverConfig } from '@/lib/markets/primary-account'
 import { NaverCommerceClient } from '@/lib/naver/client'
-import { decryptSecret } from '@/lib/secret-crypto'
-
-interface NaverApiConfig {
-  naverClientId?: string
-  naverClientSecret?: string
-  naverSellerId?: string
-}
 
 export function formatCommerceError(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : ''
@@ -27,42 +20,22 @@ export async function getCurrentNaverClient(): Promise<{
   configured: boolean
   error: string | null
 }> {
-  const supabase = await createClient()
+  const supabase = await createRedesignClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return { client: null, configured: false, error: '로그인이 필요합니다.' }
 
-  const storeId = await resolveCurrentStoreId(supabase, user.id)
-  if (!storeId) return { client: null, configured: false, error: '스토어 설정을 먼저 완료해주세요.' }
+  const { config, error } = await getPrimaryNaverConfig(supabase, user.id)
+  if (!config) return { client: null, configured: false, error }
 
-  const { data: store, error } = await supabase
-    .from('stores')
-    .select('api_config')
-    .eq('id', storeId)
-    .maybeSingle()
-
-  if (error || !store) {
-    return { client: null, configured: false, error: error?.message || '스토어를 찾을 수 없습니다.' }
-  }
-
-  const config = (store.api_config || {}) as NaverApiConfig
   if (!config.naverClientId || !config.naverClientSecret) {
     return { client: null, configured: false, error: '설정에서 네이버 커머스 API 키를 입력해주세요.' }
-  }
-
-  // Secrets are stored encrypted at rest; legacy plaintext passes through unchanged
-  let clientSecret: string
-  try {
-    clientSecret = decryptSecret(config.naverClientSecret)
-  } catch (error) {
-    console.error('Failed to decrypt Naver Commerce API secret:', error)
-    return { client: null, configured: false, error: '저장된 API 키를 복호화할 수 없습니다. 서버 암호화 키 설정을 확인해주세요.' }
   }
 
   return {
     client: new NaverCommerceClient({
       clientId: config.naverClientId,
-      clientSecret,
+      clientSecret: config.naverClientSecret,
       sellerId: config.naverSellerId,
     }),
     configured: true,
