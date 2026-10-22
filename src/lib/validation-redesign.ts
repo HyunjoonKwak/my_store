@@ -29,6 +29,7 @@ export const createMasterProductSchema = z.object({
   sku: z.string().trim().max(100).nullable().optional(),
   brand: z.string().trim().max(200).nullable().optional(),
   categoryText: z.string().trim().max(500).nullable().optional(),
+  origin: z.string().trim().max(300).nullable().optional(),
   imageUrl: z.string().trim().max(2000).nullable().optional(),
   description: z.string().max(50000).nullable().optional(),
   detailContent: z.string().max(2_000_000).nullable().optional(),

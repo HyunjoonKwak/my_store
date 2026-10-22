@@ -36,6 +36,7 @@ export interface MasterProductWithListings {
   sku: string | null
   brand: string | null
   categoryText: string | null
+  origin: string | null
   imageUrl: string | null
   supplierId: string | null
   supplierName: string | null
@@ -110,6 +111,7 @@ export async function getMasterProducts(params?: {
       sku: row.sku,
       brand: row.brand,
       categoryText: row.category_text,
+      origin: row.origin,
       imageUrl: row.image_url,
       supplierId: row.supplier_id,
       supplierName: row.suppliers?.name || null,
@@ -179,6 +181,7 @@ export async function getMasterProductById(id: string): Promise<{
       sku: row.sku,
       brand: row.brand,
       categoryText: row.category_text,
+      origin: row.origin,
       imageUrl: row.image_url,
       supplierId: row.supplier_id,
       supplierName: row.suppliers?.name || null,
@@ -212,6 +215,7 @@ export async function createMasterProduct(input: {
   sku?: string | null
   brand?: string | null
   categoryText?: string | null
+  origin?: string | null
   imageUrl?: string | null
   description?: string | null
   detailContent?: string | null
@@ -241,6 +245,7 @@ export async function createMasterProduct(input: {
       sku: parsed.sku || null,
       brand: parsed.brand || null,
       category_text: parsed.categoryText || null,
+      origin: parsed.origin || null,
       image_url: parsed.imageUrl || null,
       description: parsed.description || null,
       detail_content: parsed.detailContent || null,
@@ -273,6 +278,7 @@ export async function updateMasterProduct(input: {
   sku?: string | null
   brand?: string | null
   categoryText?: string | null
+  origin?: string | null
   imageUrl?: string | null
   description?: string | null
   detailContent?: string | null
@@ -298,6 +304,7 @@ export async function updateMasterProduct(input: {
   if (parsed.sku !== undefined) patch.sku = parsed.sku
   if (parsed.brand !== undefined) patch.brand = parsed.brand
   if (parsed.categoryText !== undefined) patch.category_text = parsed.categoryText
+  if (parsed.origin !== undefined) patch.origin = parsed.origin || null
   if (parsed.imageUrl !== undefined) patch.image_url = parsed.imageUrl
   if (parsed.description !== undefined) patch.description = parsed.description
   if (parsed.detailContent !== undefined) patch.detail_content = parsed.detailContent

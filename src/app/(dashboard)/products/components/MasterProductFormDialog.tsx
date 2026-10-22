@@ -35,6 +35,7 @@ export function MasterProductFormDialog({
     stockQuantity: '',
     sku: '',
     brand: '',
+    origin: '',
     memo: '',
   })
   const [isSaving, setIsSaving] = useState(false)
@@ -57,12 +58,13 @@ export function MasterProductFormDialog({
         stockQuantity: form.stockQuantity ? Number(form.stockQuantity) : 0,
         sku: form.sku.trim() || null,
         brand: form.brand.trim() || null,
+        origin: form.origin.trim() || null,
         memo: form.memo.trim() || null,
       })
 
       if (result.data) {
         toast.success('원본상품이 추가되었습니다.')
-        setForm({ name: '', basePrice: '', costPrice: '', stockQuantity: '', sku: '', brand: '', memo: '' })
+        setForm({ name: '', basePrice: '', costPrice: '', stockQuantity: '', sku: '', brand: '', origin: '', memo: '' })
         onOpenChange(false)
         onCreated()
       } else {
@@ -104,9 +106,13 @@ export function MasterProductFormDialog({
             <Label>SKU</Label>
             <Input value={form.sku} onChange={update('sku')} placeholder="SKU-TUM-500" />
           </div>
-          <div className="col-span-2 space-y-1.5">
+          <div className="space-y-1.5">
             <Label>브랜드</Label>
             <Input value={form.brand} onChange={update('brand')} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>원산지</Label>
+            <Input value={form.origin} onChange={update('origin')} maxLength={300} placeholder="국산(경남)" />
           </div>
           <div className="col-span-2 space-y-1.5">
             <Label>메모</Label>

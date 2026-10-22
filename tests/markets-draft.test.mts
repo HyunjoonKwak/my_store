@@ -20,6 +20,7 @@ function master(overrides: Partial<MasterProductRow> = {}): MasterProductRow {
     sku: 'SKU-1',
     brand: '마이브랜드',
     category_text: '주방>텀블러',
+    origin: null,
     image_url: 'https://example.com/img.jpg',
     extra_image_urls: [],
     supplier_id: null,

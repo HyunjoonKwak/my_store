@@ -81,6 +81,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/exchange takes ZIP uploads larger than the proxy's 10MB body
+    // buffer (proxyClientMaxBodySize); those routes check auth themselves.
+    '/((?!_next/static|_next/image|favicon.ico|api/exchange/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

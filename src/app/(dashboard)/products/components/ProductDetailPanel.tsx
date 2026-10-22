@@ -88,6 +88,12 @@ export function ProductDetailPanel({
               <p className="truncate font-medium">{product.brand}</p>
             </div>
           )}
+          {product.origin && (
+            <div>
+              <p className="text-xs text-muted-foreground">원산지</p>
+              <p className="truncate font-medium">{product.origin}</p>
+            </div>
+          )}
           {product.categoryText && (
             <div className="col-span-2">
               <p className="text-xs text-muted-foreground">카테고리</p>

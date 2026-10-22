@@ -58,6 +58,7 @@ export type MasterProductRow = {
   sku: string | null
   brand: string | null
   category_text: string | null
+  origin: string | null
   image_url: string | null
   extra_image_urls: Json
   supplier_id: string | null

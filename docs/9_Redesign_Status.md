@@ -139,3 +139,41 @@ E2E 14/14 → main 병합 → ship 배포(healthy)까지 완료. 원래 체크�
 - `detailpage_maker` — 이식 완료. 원격 `page_maker`는 GitHub에서 이미 archive 상태, 로컬은 `~/code_work/archive/`
 - `withus_manager` — 선별 흡수 완료. GitHub에 저장소가 없음(삭제됨), 로컬은 `~/code_work/archive/`
   (`stage_2`에 push 안 된 커밋 1개: 주문관리 템플릿 수정 — 로컬에만 남아 있음)
+
+## Marketing Desk 파일 교환 — 2026-10-22 (my_store 쪽)
+
+형식은 `marketing_desk/docs/FILE_EXCHANGE.md`(두 앱 공통 계약, 10-22 사용자 확정)가 기준이다.
+여기에는 my_store 구현과 계약에서 따로 정한 점만 적는다.
+
+- **원산지**: `master_products.origin`(마이그레이션 150, 300자). 상품 추가 창과 마켓 배포 화면의
+  Marketing Desk 카드에서 입력한다.
+- **상품 ZIP 내보내기**: `GET /api/exchange/products/[id]` → `desk-product-<sku>.zip`.
+  사진은 `image_url` + `extra_image_urls` 순서로 서버가 내려받는데, `https://*.pstatic.net`만 허용하고
+  리다이렉트는 거부한다. 사진 형식은 파일 내용으로 판별한다. 다른 호스트나 GIF 같은 계약 밖 형식의 사진은 빼고,
+  뺀 개수를 응답 헤더 `X-Skipped-Images`와 화면 알림으로 알린다. 설명은 HTML을 뺀 텍스트로, 옵션은 활성 옵션만 `position` 순서로 넣는다.
+- **상세 ZIP 가져오기**: `POST /api/exchange/products/[id]/detail`(multipart `file`, 선택 `confirmSku=1`).
+  - ZIP 구조·크기 제한은 계약을 그대로 따른다. `detail.html`은 Desk의 내보내기 검사와 같은 규칙으로
+    다시 검사한다(`lib/exchange/detail-html.ts`): 스크립트성 태그, `on*` 속성, 링크, 외부 주소, CSS `url()`/`@import`를 거부한다.
+    여기에 Desk 규칙보다 몇 가지를 더 막는다.
+    - raw-text 요소(`xmp`·`noembed`·`noframes`·`plaintext`·`textarea`)를 거부한다.
+    - 백슬래시가 든 CSS를 거부한다. CSS 이스케이프로 `\75 rl(`처럼 쓰면 `url(` 검사를 피할 수 있기 때문이다. Desk의 Go `unsafeCSS`에도 같은 빈틈이 있다.
+    - 변환한 결과를 한 번 더 검사한다.
+  - 사진을 올리기 전에 임시 주소로 먼저 변환해 본다. 변환이 실패하거나 결과가 너무 길면 업로드 전에 멈춰, 네이버에 쓰이지 않는 사진이 남지 않게 한다.
+  - manifest의 `sku`가 이 상품의 키(SKU, 없으면 상품 id)와 다르면 409를 돌려주고, 화면에서 확인한 뒤에만 가져온다.
+  - HTML이 실제로 쓰는 사진만 네이버 이미지 API(`/v1/product-images/upload`, 10장씩)에 올린다.
+    네이버는 WebP를 받지 않고 크기 상한도 10MB라서, WebP는 PNG로, 10MB를 넘는 사진은 JPEG로 바꾼다(sharp).
+  - 네이버 `detailContent`는 HTML 조각이라 `<style>`을 인라인 스타일로 바꾸고(juice), `<body>` 내용만
+    body 스타일을 가진 `<div>`로 감싸 `master_products.detail_content`에 저장한다. `::before`
+    같은 가상 요소와 미디어 쿼리는 인라인으로 옮길 수 없어 빠진다.
+  - 저장된 상세는 재정의하지 않은 마켓의 다음 배포 때 쓰인다. 이미 올라간 상품에 자동으로 보내지는 않는다.
+- **업로드 크기**: `src/proxy.ts`의 matcher가 `api/exchange/`를 제외한다. proxy는 요청 본문을 10MB까지만
+  버퍼에 담아(`proxyClientMaxBodySize`) 더 큰 ZIP이 잘리기 때문이다. 이 라우트들은 본문을 읽기 전에 직접 로그인을 확인한다.
+  `Content-Length`가 없는 요청은 거부한다(411). 가져오기는 서버 전체에서 한 번에 하나만 실행한다(메모리 보호).
+  NAS 리버스 프록시의 업로드 크기 제한은 실제 큰 ZIP으로 확인해야 한다.
+- **검증**: `tests/exchange.test.mts`(단위)에 더해 Desk Go 코드와 교차 확인했다.
+  - my_store 상품 ZIP을 `readProductZIP`이 받아들였다.
+  - Desk `exportDetail`이 만든 template·sections ZIP을 my_store 리더·변환기가 처리했다.
+  - Desk 템플릿 8종은 모두 검사를 통과했다.
+- **남은 일**
+  - 실제 상품으로 Desk와 왕복해 확인하기: 네이버 이미지 업로드, 스마트스토어 상세 표시.
+  - 그다음 스튜디오 화면 정리(계획 §6·§7: Desk 기능을 확인한 뒤).

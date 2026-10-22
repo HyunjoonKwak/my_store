@@ -133,6 +133,55 @@ export class NaverCommerceClient {
     return response.json()
   }
 
+  /**
+   * Uploads up to 10 images in one call and returns their Naver URLs in
+   * input order. Naver accepts JPG, GIF, PNG and BMP only.
+   */
+  async uploadProductImages(
+    files: Array<{ bytes: Uint8Array; mime: string; name: string }>
+  ): Promise<string[]> {
+    if (files.length === 0) return []
+    if (files.length > 10) throw new Error('이미지는 한 번에 10장까지 올릴 수 있습니다.')
+
+    const buildForm = () => {
+      const form = new FormData()
+      for (const file of files) {
+        form.append('imageFiles', new Blob([new Uint8Array(file.bytes)], { type: file.mime }), file.name)
+      }
+      return form
+    }
+    const send = async () =>
+      fetch(`${NAVER_API_BASE_URL}/external/v1/product-images/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${await this.getAccessToken()}`,
+          Accept: 'application/json;charset=UTF-8',
+        },
+        body: buildForm(),
+        signal: AbortSignal.timeout(60_000),
+      })
+
+    let response = await send()
+    for (let attempt = 0; shouldRetryRateLimit(response.status, attempt); attempt++) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, rateLimitDelayMs(attempt, response.headers.get('retry-after')))
+      )
+      response = await send()
+    }
+
+    const data = await response.json().catch(() => null)
+    if (!response.ok) {
+      throw new Error(data?.message || `이미지 업로드에 실패했습니다(${response.status}).`)
+    }
+    const urls: string[] = Array.isArray(data?.images)
+      ? data.images.map((image: { url?: unknown }) => String(image?.url || ''))
+      : []
+    if (urls.length !== files.length || urls.some((url) => !url)) {
+      throw new Error('업로드된 이미지 주소를 확인하지 못했습니다.')
+    }
+    return urls
+  }
+
   async getOrders(params: {
     fromDate: string
     toDate?: string
